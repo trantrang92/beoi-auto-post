@@ -50,7 +50,8 @@ def post_to_facebook(content):
     url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/feed"
     response = requests.post(url, data={
         "message": content,
-        "access_token": FB_PAGE_TOKEN
+        "access_token": FB_PAGE_TOKEN,
+        "published": "true"
     }, timeout=30)
     result = response.json()
     if "id" in result:
