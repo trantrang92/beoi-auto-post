@@ -1,30 +1,26 @@
 import os
-import anthropic
 import requests
+import google.generativeai as genai
 from datetime import datetime
 
-CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 FB_PAGE_ID = os.environ.get('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
 
 def generate_content():
-    client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
-    
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+
     hour = datetime.utcnow().hour
-    
+
     if hour < 8:
         topic = "buổi sáng - mẹo khởi động ngày mới cùng bé"
     elif hour < 14:
         topic = "buổi trưa - dinh dưỡng và giấc ngủ trưa của bé"
     else:
         topic = "buổi tối - thư giãn và gắn kết gia đình với bé"
-    
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{
-            "role": "user",
-            "content": f"""Bạn là chuyên gia tư vấn nuôi dạy con của app Bé Ơi.
+
+    prompt = f"""Bạn là chuyên gia tư vấn nuôi dạy con của app Bé Ơi.
 Viết 1 bài đăng Facebook về chủ đề: {topic}
 Yêu cầu:
 - Thân thiện, ấm áp với các mẹ Việt Nam
@@ -33,9 +29,9 @@ Yêu cầu:
 - Cuối bài nhắc tải app Bé Ơi
 - Hashtag: #BéƠi #ChămsócBé #MẹVàBé
 Chỉ trả về nội dung bài viết."""
-        }]
-    )
-    return message.content[0].text
+
+    response = model.generate_content(prompt)
+    return response.text
 
 def post_to_facebook(content):
     url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/feed"
@@ -51,10 +47,10 @@ def post_to_facebook(content):
 
 def main():
     print(f"🚀 Bắt đầu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("📝 Đang tạo nội dung...")
+    print("📝 Đang tạo nội dung với Gemini AI...")
     content = generate_content()
     print(f"Nội dung:\n{content}\n")
-    print("📤 Đang đăng lên Facebook...")
+    print("📤 Đang đăng lên Facebook Page Bé Ơi...")
     post_to_facebook(content)
 
 if __name__ == "__main__":
