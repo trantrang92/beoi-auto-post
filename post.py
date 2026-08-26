@@ -17,13 +17,14 @@ PHOTO_KEYWORDS = [
 
 def get_photo_url():
     try:
-        keyword = random.choice(PHOTO_KEYWORDS).replace(" ", "+")
-        # Unsplash source - không cần API key
-        url = f"https://source.unsplash.com/800x600/?{keyword}"
+        keyword = random.choice(PHOTO_KEYWORDS).replace(" ", ",")
+        seed = random.randint(1, 1000)
+        url = f"https://loremflickr.com/800/600/{keyword}?random={seed}&lock={seed}"
         res = requests.get(url, timeout=15, allow_redirects=True)
         if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
+            print(f"Ảnh URL: {res.url}")
             return res.url
-        print("Không lấy được ảnh từ Unsplash")
+        print(f"Không lấy được ảnh, status: {res.status_code}")
     except Exception as e:
         print(f"Lỗi lấy ảnh: {e}")
     return None
