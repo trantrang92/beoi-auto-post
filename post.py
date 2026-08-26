@@ -1,16 +1,15 @@
 import os
+import time
 import requests
-from google import genai
 from datetime import datetime
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 FB_PAGE_ID = os.environ.get('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
 
-def generate_content():
-    import time
-    client = genai.Client(api_key=GEMINI_API_KEY)
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={GEMINI_API_KEY}"
 
+def generate_content():
     hour = datetime.utcnow().hour
 
     if hour < 8:
@@ -30,15 +29,21 @@ Yêu cầu:
 - Hashtag: #BéƠi #ChămsócBé #MẹVàBé
 Chỉ trả về nội dung bài viết."""
 
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
     for attempt in range(5):
         try:
-            print(f"Lần {attempt+1}...")
-            response = client.models.generate_content(model='gemini-3.6-flash', contents=prompt)
-            return response.text
+            print(f"Lần {attempt+1}/5...")
+            res = requests.post(GEMINI_URL, json=payload, timeout=30)
+            data = res.json()
+            if "candidates" in data:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            print(f"Lỗi Gemini: {data.get('error', {}).get('message', data)}")
         except Exception as e:
-            print(f"Lỗi: {e}")
-            if attempt < 4:
-                time.sleep(15)
+            print(f"Lỗi request: {e}")
+        if attempt < 4:
+            time.sleep(15)
+
     raise Exception("Gemini thất bại sau 5 lần thử")
 
 def post_to_facebook(content):
@@ -46,7 +51,7 @@ def post_to_facebook(content):
     response = requests.post(url, data={
         "message": content,
         "access_token": FB_PAGE_TOKEN
-    })
+    }, timeout=30)
     result = response.json()
     if "id" in result:
         print(f"✅ Đăng thành công! Post ID: {result['id']}")
