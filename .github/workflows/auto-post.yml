@@ -1,0 +1,29 @@
+name: Auto Post to Facebook
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 7h sáng VN (UTC+7)
+    - cron: '0 5 * * *'   # 12h trưa VN
+    - cron: '0 13 * * *'  # 20h tối VN
+  workflow_dispatch:       # Cho phép chạy thủ công
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run auto post
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+        run: python post.py
