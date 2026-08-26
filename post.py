@@ -1,6 +1,6 @@
 import os
 import requests
-import google.generativeai as genai
+from google import genai
 from datetime import datetime
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
@@ -8,8 +8,7 @@ FB_PAGE_ID = os.environ.get('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
 
 def generate_content():
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     hour = datetime.utcnow().hour
 
@@ -30,7 +29,10 @@ Yêu cầu:
 - Hashtag: #BéƠi #ChămsócBé #MẹVàBé
 Chỉ trả về nội dung bài viết."""
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt
+    )
     return response.text
 
 def post_to_facebook(content):
