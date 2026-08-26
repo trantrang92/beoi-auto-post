@@ -45,7 +45,7 @@ def post_to_facebook(content):
     if "id" in result:
         print(f"✅ Đăng thành công! Post ID: {result['id']}")
     else:
-        print(f"❌ Lỗi: {result}")
+        raise Exception(f"❌ Facebook API Error: {result}")
 
 def main():
     print(f"🚀 Bắt đầu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
