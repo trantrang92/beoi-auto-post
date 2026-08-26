@@ -30,18 +30,16 @@ Yêu cầu:
 - Hashtag: #BéƠi #ChămsócBé #MẹVàBé
 Chỉ trả về nội dung bài viết."""
 
-    models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-3.6-flash']
-    for model in models:
-        for attempt in range(3):
-            try:
-                print(f"Thử model {model}, lần {attempt+1}...")
-                response = client.models.generate_content(model=model, contents=prompt)
-                return response.text
-            except Exception as e:
-                print(f"Lỗi: {e}")
-                if attempt < 2:
-                    time.sleep(10)
-    raise Exception("Tất cả models đều thất bại")
+    for attempt in range(5):
+        try:
+            print(f"Lần {attempt+1}...")
+            response = client.models.generate_content(model='gemini-3.6-flash', contents=prompt)
+            return response.text
+        except Exception as e:
+            print(f"Lỗi: {e}")
+            if attempt < 4:
+                time.sleep(15)
+    raise Exception("Gemini thất bại sau 5 lần thử")
 
 def post_to_facebook(content):
     url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/feed"
