@@ -29,8 +29,31 @@ def get_photo_url():
         print(f"Lỗi lấy ảnh: {e}")
     return None
 
+TOPICS = [
+    "Dinh dưỡng cho bé: thực đơn ăn dặm, bữa ăn cân bằng, thực phẩm tốt cho trí não",
+    "Giấc ngủ của bé: mẹo giúp bé ngủ ngon, giờ ngủ phù hợp theo độ tuổi",
+    "Phát triển vận động: bé tập lẫy, tập bò, tập đi, các mốc phát triển",
+    "Sức khỏe bé: dấu hiệu bé ốm, cách chăm sóc khi bé sốt, tiêm phòng",
+    "Trò chơi phát triển trí não: đồ chơi phù hợp, hoạt động kích thích sáng tạo",
+    "Gắn kết gia đình: đọc sách cùng bé, thời gian chất lượng bên con",
+    "Tắm và vệ sinh cho bé: cách tắm an toàn, chăm sóc da bé",
+    "Mẹo chăm bé mùa nóng: giữ mát, phòng rôm sảy, bổ sung nước",
+    "Mẹo chăm bé mùa lạnh: giữ ấm, phòng cảm cúm, tăng đề kháng",
+    "Tâm lý bé: hiểu cảm xúc của bé, cách dỗ bé khóc, xây dựng thói quen tốt",
+    "Sữa mẹ và cách cho bé bú: lợi ích sữa mẹ, tư thế cho bú đúng cách",
+    "Bé và giấc ngủ trưa: tầm quan trọng, cách tạo thói quen ngủ trưa",
+    "Massage cho bé: lợi ích, kỹ thuật massage nhẹ nhàng cho bé sơ sinh",
+    "Chuẩn bị đồ đi ra ngoài cùng bé: checklist, mẹo tiện lợi cho mẹ",
+    "Dạy bé kỹ năng tự lập: tự ăn, tự mặc quần áo, dọn đồ chơi",
+    "Âm nhạc và bé: bài hát ru, nhạc giúp bé phát triển thính giác",
+    "Bé tập nói: cách khuyến khích bé nói, trò chuyện với bé mỗi ngày",
+    "Chăm sóc răng miệng cho bé: khi nào bé mọc răng, cách vệ sinh",
+    "Mẹ sau sinh: cân bằng chăm con và chăm bản thân, tránh kiệt sức",
+    "An toàn cho bé: chống ngã, để xa vật nguy hiểm, an toàn khi ngủ"
+]
+
 def generate_content():
-    topic = "buổi tối - thư giãn và gắn kết gia đình với bé"
+    topic = random.choice(TOPICS)
 
     prompt = f"""Bạn là chuyên gia tư vấn nuôi dạy con của app Bé Ơi.
 Viết 1 bài đăng Facebook về chủ đề: {topic}
@@ -40,6 +63,7 @@ Yêu cầu:
 - 150-250 từ
 - Cuối bài nhắc tải app Bé Ơi
 - Hashtag: #BéƠi #ChămsócBé #MẹVàBé
+- Không lặp lại nội dung các bài trước
 Chỉ trả về nội dung bài viết."""
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
