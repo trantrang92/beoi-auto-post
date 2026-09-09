@@ -84,28 +84,37 @@ Chỉ trả về nội dung bài viết."""
     raise Exception("Gemini thất bại sau 5 lần thử")
 
 def post_to_facebook(content, photo_url=None):
-    if photo_url:
-        # Upload ảnh trực tiếp lên Facebook
-        img_data = requests.get(photo_url, timeout=15).content
-        upload_url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/photos"
-        response = requests.post(upload_url, data={
-            "caption": content,
-            "access_token": FB_PAGE_TOKEN,
-            "published": "true"
-        }, files={"source": ("photo.jpg", img_data, "image/jpeg")}, timeout=60)
-    else:
-        url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/feed"
-        response = requests.post(url, data={
-            "message": content,
-            "access_token": FB_PAGE_TOKEN,
-            "published": "true"
-        }, timeout=30)
+    for attempt in range(3):
+        try:
+            if photo_url:
+                img_data = requests.get(photo_url, timeout=15).content
+                upload_url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/photos"
+                response = requests.post(upload_url, data={
+                    "caption": content,
+                    "access_token": FB_PAGE_TOKEN,
+                    "published": "true"
+                }, files={"source": ("photo.jpg", img_data, "image/jpeg")}, timeout=60)
+            else:
+                url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/feed"
+                response = requests.post(url, data={
+                    "message": content,
+                    "access_token": FB_PAGE_TOKEN,
+                    "published": "true"
+                }, timeout=30)
 
-    result = response.json()
-    if "id" in result:
-        print(f"✅ Đăng thành công! Post ID: {result['id']}")
-    else:
-        raise Exception(f"❌ Facebook API Error: {result}")
+            result = response.json()
+            if "id" in result:
+                print(f"✅ Đăng thành công! Post ID: {result['id']}")
+                return
+            if result.get("error", {}).get("is_transient"):
+                print(f"Facebook lỗi tạm thời, thử lại... ({attempt+1}/3)")
+                time.sleep(30)
+                continue
+            raise Exception(f"❌ Facebook API Error: {result}")
+        except requests.exceptions.RequestException as e:
+            print(f"Lỗi kết nối Facebook, thử lại... ({attempt+1}/3): {e}")
+            time.sleep(30)
+    raise Exception("Facebook thất bại sau 3 lần thử")
 
 def main():
     print(f"🚀 Bắt đầu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
