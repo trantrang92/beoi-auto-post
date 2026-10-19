@@ -9,27 +9,52 @@ FB_PAGE_ID = os.environ.get('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={GEMINI_API_KEY}"
 
-PHOTO_KEYWORDS = [
-    "baby mother", "newborn baby", "mom baby smile",
-    "baby care", "mother child love", "baby playing",
-    "happy baby", "cute baby", "baby sleeping", "family baby"
-]
+def generate_image_prompt(topic):
+    """Tạo prompt tiếng Anh để sinh ảnh AI minh họa em bé theo chủ đề."""
+    prompt = f"""Based on this Vietnamese parenting topic: "{topic}"
+Generate a short English image prompt (1 sentence, max 20 words) for a cute, warm illustration of a baby or mother with baby related to this topic.
+Style: soft pastel colors, cartoon illustration, kawaii, wholesome.
+Only return the image prompt, nothing else."""
 
-def get_photo_url():
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
-        keyword = random.choice(PHOTO_KEYWORDS).replace(" ", "+")
-        # Try picsum first (reliable), then loremflickr as fallback
-        for base_url in [
-            f"https://loremflickr.com/800/600/{keyword}?random={random.randint(1,9999)}",
-            f"https://picsum.photos/800/600?random={random.randint(1,9999)}"
-        ]:
-            res = requests.get(base_url, timeout=15, allow_redirects=True)
-            if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
-                print(f"Ảnh URL: {res.url}")
-                return res.url
-        print("Không lấy được ảnh từ cả 2 nguồn")
+        res = requests.post(GEMINI_URL, json=payload, timeout=30)
+        data = res.json()
+        if "candidates" in data:
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
     except Exception as e:
-        print(f"Lỗi lấy ảnh: {e}")
+        print(f"Lỗi tạo image prompt: {e}")
+    return "cute happy baby with mother, soft pastel illustration, kawaii style"
+
+def get_photo_url(topic):
+    """Tạo ảnh AI minh họa bằng Pollinations.ai (miễn phí, không cần API key)."""
+    try:
+        image_prompt = generate_image_prompt(topic)
+        print(f"Image prompt: {image_prompt}")
+
+        from urllib.parse import quote
+        encoded = quote(image_prompt)
+        poll_url = f"https://image.pollinations.ai/prompt/{encoded}?width=800&height=600&seed={random.randint(1,99999)}&nologo=true"
+
+        res = requests.get(poll_url, timeout=60, allow_redirects=True)
+        if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
+            print(f"✅ Ảnh AI tạo thành công ({len(res.content)} bytes)")
+            return poll_url
+
+        print(f"Pollinations lỗi: status {res.status_code}")
+    except Exception as e:
+        print(f"Lỗi tạo ảnh AI: {e}")
+
+    # Fallback: loremflickr
+    try:
+        keyword = random.choice(["cute baby", "baby mother", "happy baby"]).replace(" ", "+")
+        fallback_url = f"https://loremflickr.com/800/600/{keyword}?random={random.randint(1,9999)}"
+        res = requests.get(fallback_url, timeout=15, allow_redirects=True)
+        if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
+            print(f"Fallback ảnh: {res.url}")
+            return res.url
+    except Exception as e:
+        print(f"Lỗi fallback ảnh: {e}")
     return None
 
 TOPICS = [
@@ -55,8 +80,12 @@ TOPICS = [
     "An toàn cho bé: chống ngã, để xa vật nguy hiểm, an toàn khi ngủ"
 ]
 
+selected_topic = None
+
 def generate_content():
-    topic = random.choice(TOPICS)
+    global selected_topic
+    selected_topic = random.choice(TOPICS)
+    topic = selected_topic
 
     prompt = f"""Bạn là chuyên gia tư vấn nuôi dạy con của app Bé Ơi.
 Viết 1 bài đăng Facebook về chủ đề: {topic}
@@ -124,8 +153,8 @@ def main():
     print("📝 Đang tạo nội dung với Gemini AI...")
     content = generate_content()
     print(f"Nội dung:\n{content}\n")
-    print("🖼️ Đang lấy ảnh minh họa...")
-    photo_url = get_photo_url()
+    print("🖼️ Đang tạo ảnh AI minh họa...")
+    photo_url = get_photo_url(selected_topic)
     print(f"Ảnh: {photo_url}")
     print("📤 Đang đăng lên Facebook Page Bé Ơi...")
     post_to_facebook(content, photo_url)
