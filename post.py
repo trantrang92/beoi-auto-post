@@ -26,8 +26,8 @@ Only return the image prompt, nothing else."""
         print(f"Lỗi tạo image prompt: {e}")
     return "cute happy baby with mother, soft pastel illustration, kawaii style"
 
-def get_photo_url(topic):
-    """Tạo ảnh AI minh họa bằng Pollinations.ai (miễn phí, không cần API key)."""
+def get_photo_data(topic):
+    """Tạo ảnh AI minh họa bằng Pollinations.ai, trả về image bytes."""
     try:
         image_prompt = generate_image_prompt(topic)
         print(f"Image prompt: {image_prompt}")
@@ -36,10 +36,10 @@ def get_photo_url(topic):
         encoded = quote(image_prompt)
         poll_url = f"https://image.pollinations.ai/prompt/{encoded}?width=800&height=600&seed={random.randint(1,99999)}&nologo=true"
 
-        res = requests.get(poll_url, timeout=60, allow_redirects=True)
+        res = requests.get(poll_url, timeout=90, allow_redirects=True)
         if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
             print(f"✅ Ảnh AI tạo thành công ({len(res.content)} bytes)")
-            return poll_url
+            return res.content
 
         print(f"Pollinations lỗi: status {res.status_code}")
     except Exception as e:
@@ -51,8 +51,8 @@ def get_photo_url(topic):
         fallback_url = f"https://loremflickr.com/800/600/{keyword}?random={random.randint(1,9999)}"
         res = requests.get(fallback_url, timeout=15, allow_redirects=True)
         if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
-            print(f"Fallback ảnh: {res.url}")
-            return res.url
+            print(f"Fallback ảnh: {res.url} ({len(res.content)} bytes)")
+            return res.content
     except Exception as e:
         print(f"Lỗi fallback ảnh: {e}")
     return None
@@ -115,11 +115,10 @@ Chỉ trả về nội dung bài viết."""
 
     raise Exception("Gemini thất bại sau 5 lần thử")
 
-def post_to_facebook(content, photo_url=None):
+def post_to_facebook(content, img_data=None):
     for attempt in range(3):
         try:
-            if photo_url:
-                img_data = requests.get(photo_url, timeout=15).content
+            if img_data:
                 upload_url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/photos"
                 response = requests.post(upload_url, data={
                     "caption": content,
@@ -154,10 +153,10 @@ def main():
     content = generate_content()
     print(f"Nội dung:\n{content}\n")
     print("🖼️ Đang tạo ảnh AI minh họa...")
-    photo_url = get_photo_url(selected_topic)
-    print(f"Ảnh: {photo_url}")
+    img_data = get_photo_data(selected_topic)
+    print(f"Ảnh: {'có' if img_data else 'không'} ({len(img_data)} bytes)" if img_data else "Ảnh: không có")
     print("📤 Đang đăng lên Facebook Page Bé Ơi...")
-    post_to_facebook(content, photo_url)
+    post_to_facebook(content, img_data)
 
 if __name__ == "__main__":
     main()
