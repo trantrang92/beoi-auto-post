@@ -9,11 +9,15 @@ FB_PAGE_ID = os.environ.get('FB_PAGE_ID')
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={GEMINI_API_KEY}"
 
-def generate_image_prompt(topic):
-    """Tạo prompt tiếng Anh để sinh ảnh AI minh họa em bé theo chủ đề."""
-    prompt = f"""Based on this Vietnamese parenting topic: "{topic}"
-Generate a short English image prompt (1 sentence, max 20 words) for a cute, warm illustration of a baby or mother with baby related to this topic.
-Style: soft pastel colors, cartoon illustration, kawaii, wholesome.
+def generate_image_prompt(post_content):
+    """Đọc nội dung bài viết thực tế rồi tạo image prompt phù hợp."""
+    prompt = f"""Read this Vietnamese Facebook post carefully:
+---
+{post_content}
+---
+Based on the SPECIFIC content above, generate a short English image prompt (1 sentence, max 25 words) that illustrates the KEY scene or activity described in the post.
+Focus on the main action: if the post is about baby sleeping, show a sleeping baby; if about feeding, show feeding; if about playing, show playing, etc.
+Style: soft pastel watercolor, cute cartoon illustration, warm lighting, wholesome.
 Only return the image prompt, nothing else."""
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -26,10 +30,10 @@ Only return the image prompt, nothing else."""
         print(f"Lỗi tạo image prompt: {e}")
     return "cute happy baby with mother, soft pastel illustration, kawaii style"
 
-def get_photo_data(topic):
-    """Tạo ảnh AI minh họa bằng Pollinations.ai, trả về image bytes."""
+def get_photo_data(post_content):
+    """Tạo ảnh AI minh họa bằng Pollinations.ai dựa trên nội dung bài viết."""
     try:
-        image_prompt = generate_image_prompt(topic)
+        image_prompt = generate_image_prompt(post_content)
         print(f"Image prompt: {image_prompt}")
 
         from urllib.parse import quote
@@ -80,12 +84,8 @@ TOPICS = [
     "An toàn cho bé: chống ngã, để xa vật nguy hiểm, an toàn khi ngủ"
 ]
 
-selected_topic = None
-
 def generate_content():
-    global selected_topic
-    selected_topic = random.choice(TOPICS)
-    topic = selected_topic
+    topic = random.choice(TOPICS)
 
     prompt = f"""Bạn là chuyên gia tư vấn nuôi dạy con của app Bé Ơi.
 Viết 1 bài đăng Facebook về chủ đề: {topic}
@@ -152,8 +152,8 @@ def main():
     print("📝 Đang tạo nội dung với Gemini AI...")
     content = generate_content()
     print(f"Nội dung:\n{content}\n")
-    print("🖼️ Đang tạo ảnh AI minh họa...")
-    img_data = get_photo_data(selected_topic)
+    print("🖼️ Đang tạo ảnh AI minh họa theo nội dung bài viết...")
+    img_data = get_photo_data(content)
     print(f"Ảnh: {'có' if img_data else 'không'} ({len(img_data)} bytes)" if img_data else "Ảnh: không có")
     print("📤 Đang đăng lên Facebook Page Bé Ơi...")
     post_to_facebook(content, img_data)
