@@ -1,0 +1,277 @@
+import os
+import time
+import random
+import requests
+import subprocess
+from datetime import datetime
+from urllib.parse import quote
+
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+FB_PAGE_ID = os.environ.get('FB_PAGE_ID')
+FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={GEMINI_API_KEY}"
+
+TOPICS = [
+    "Dinh dưỡng cho bé: thực đơn ăn dặm, bữa ăn cân bằng, thực phẩm tốt cho trí não",
+    "Giấc ngủ của bé: mẹo giúp bé ngủ ngon, giờ ngủ phù hợp theo độ tuổi",
+    "Phát triển vận động: bé tập lẫy, tập bò, tập đi, các mốc phát triển",
+    "Sức khỏe bé: dấu hiệu bé ốm, cách chăm sóc khi bé sốt, tiêm phòng",
+    "Trò chơi phát triển trí não: đồ chơi phù hợp, hoạt động kích thích sáng tạo",
+    "Gắn kết gia đình: đọc sách cùng bé, thời gian chất lượng bên con",
+    "Tắm và vệ sinh cho bé: cách tắm an toàn, chăm sóc da bé",
+    "Mẹo chăm bé mùa nóng: giữ mát, phòng rôm sảy, bổ sung nước",
+    "Mẹo chăm bé mùa lạnh: giữ ấm, phòng cảm cúm, tăng đề kháng",
+    "Tâm lý bé: hiểu cảm xúc của bé, cách dỗ bé khóc, xây dựng thói quen tốt",
+    "Sữa mẹ và cách cho bé bú: lợi ích sữa mẹ, tư thế cho bú đúng cách",
+    "Massage cho bé: lợi ích, kỹ thuật massage nhẹ nhàng cho bé sơ sinh",
+    "Dạy bé kỹ năng tự lập: tự ăn, tự mặc quần áo, dọn đồ chơi",
+    "Âm nhạc và bé: bài hát ru, nhạc giúp bé phát triển thính giác",
+    "Bé tập nói: cách khuyến khích bé nói, trò chuyện với bé mỗi ngày",
+    "Chăm sóc răng miệng cho bé: khi nào bé mọc răng, cách vệ sinh",
+    "Mẹ sau sinh: cân bằng chăm con và chăm bản thân, tránh kiệt sức",
+    "An toàn cho bé: chống ngã, để xa vật nguy hiểm, an toàn khi ngủ"
+]
+
+def gemini_generate(prompt):
+    """Gọi Gemini API với retry."""
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    for attempt in range(5):
+        try:
+            res = requests.post(GEMINI_URL, json=payload, timeout=30)
+            data = res.json()
+            if "candidates" in data:
+                return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            print(f"Gemini lỗi: {data.get('error', {}).get('message', 'unknown')}")
+        except Exception as e:
+            print(f"Gemini request lỗi: {e}")
+        if attempt < 4:
+            time.sleep(15)
+    return None
+
+def generate_reel_content():
+    """Tạo nội dung ngắn cho Reel (caption) và 4 mô tả cảnh."""
+    topic = random.choice(TOPICS)
+
+    prompt = f"""Bạn là chuyên gia nuôi dạy con của app Bé Ơi.
+Tạo nội dung cho 1 Facebook Reel ngắn về chủ đề: {topic}
+
+Trả về đúng format sau (không thêm gì khác):
+CAPTION:
+(Caption ngắn gọn 50-80 từ, có emoji, cuối có hashtag #BéƠi #ChămsócBé #MẹVàBé và nhắc tải app Bé Ơi)
+
+TIP1:
+(Mẹo/lời khuyên thứ 1, tối đa 12 từ tiếng Việt)
+
+TIP2:
+(Mẹo/lời khuyên thứ 2, tối đa 12 từ tiếng Việt)
+
+TIP3:
+(Mẹo/lời khuyên thứ 3, tối đa 12 từ tiếng Việt)
+
+TITLE:
+(Tiêu đề ngắn gọn 5-8 từ tiếng Việt cho video)"""
+
+    result = gemini_generate(prompt)
+    if not result:
+        raise Exception("Không tạo được nội dung Reel")
+
+    parts = {}
+    current_key = None
+    current_lines = []
+    for line in result.split('\n'):
+        line = line.strip()
+        if line in ['CAPTION:', 'TIP1:', 'TIP2:', 'TIP3:', 'TITLE:']:
+            if current_key:
+                parts[current_key] = '\n'.join(current_lines).strip()
+            current_key = line.replace(':', '')
+            current_lines = []
+        elif current_key:
+            current_lines.append(line)
+    if current_key:
+        parts[current_key] = '\n'.join(current_lines).strip()
+
+    print(f"Caption: {parts.get('CAPTION', '')[:80]}...")
+    print(f"Tips: {parts.get('TIP1', '')} | {parts.get('TIP2', '')} | {parts.get('TIP3', '')}")
+    print(f"Title: {parts.get('TITLE', '')}")
+    return parts
+
+def generate_scene_images(parts):
+    """Tạo 4 ảnh AI cho 4 cảnh trong video (vertical 1080x1920)."""
+    scenes_prompt = f"""Based on this Vietnamese parenting content:
+Title: {parts.get('TITLE', '')}
+Tips: {parts.get('TIP1', '')}; {parts.get('TIP2', '')}; {parts.get('TIP3', '')}
+
+Generate 4 different English image prompts (one per line, max 25 words each) for a short video about this topic.
+Each scene should show a DIFFERENT moment:
+Scene 1: Opening - eye-catching scene related to the title
+Scene 2: Illustrating tip 1
+Scene 3: Illustrating tip 2
+Scene 4: Illustrating tip 3
+
+Style for ALL: soft pastel watercolor, cute cartoon illustration, warm lighting, wholesome, vertical portrait orientation.
+Return ONLY 4 lines, one prompt per line."""
+
+    result = gemini_generate(scenes_prompt)
+    if not result:
+        result = "cute baby smiling with mother, pastel watercolor\nbaby eating healthy food, kawaii illustration\nbaby sleeping peacefully, soft pastel colors\nhappy family with baby, warm illustration"
+
+    scene_prompts = [line.strip() for line in result.strip().split('\n') if line.strip()][:4]
+    # Pad to 4 if needed
+    while len(scene_prompts) < 4:
+        scene_prompts.append("cute happy baby with mother, soft pastel illustration")
+
+    images = []
+    for i, sp in enumerate(scene_prompts):
+        print(f"🎨 Tạo ảnh cảnh {i+1}/4: {sp[:60]}...")
+        encoded = quote(sp)
+        url = f"https://image.pollinations.ai/prompt/{encoded}?width=1080&height=1920&seed={random.randint(1,99999)}&nologo=true"
+        try:
+            res = requests.get(url, timeout=90, allow_redirects=True)
+            if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
+                img_path = f"/tmp/scene_{i}.jpg"
+                with open(img_path, 'wb') as f:
+                    f.write(res.content)
+                images.append(img_path)
+                print(f"  ✅ {len(res.content)} bytes")
+            else:
+                print(f"  ❌ Status {res.status_code}")
+        except Exception as e:
+            print(f"  ❌ Lỗi: {e}")
+
+    if len(images) < 2:
+        raise Exception(f"Chỉ tạo được {len(images)} ảnh, cần ít nhất 2")
+    return images
+
+def create_video(images, parts):
+    """Dùng ffmpeg tạo video từ ảnh với hiệu ứng zoom + text overlay."""
+    output_path = "/tmp/reel.mp4"
+    duration_per_image = 4  # seconds per scene
+
+    # Build ffmpeg filter: each image gets a slow zoom (ken burns) effect
+    inputs = []
+    filters = []
+    for i, img in enumerate(images):
+        inputs.extend(['-loop', '1', '-t', str(duration_per_image), '-i', img])
+        # Slow zoom in effect: scale from 100% to 110% over duration
+        filters.append(
+            f"[{i}:v]scale=1080:1920,setsar=1,"
+            f"zoompan=z='min(zoom+0.0015,1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            f":d={duration_per_image*30}:s=1080x1920:fps=30"
+            f"[v{i}]"
+        )
+
+    # Concat all scenes with crossfade
+    concat_parts = []
+    if len(images) == 1:
+        filter_str = filters[0]
+        last_label = "v0"
+    else:
+        filter_str = ";".join(filters)
+        # Add crossfade between scenes
+        prev = "v0"
+        for i in range(1, len(images)):
+            offset = i * duration_per_image - 0.5  # 0.5s crossfade
+            label = f"cf{i}" if i < len(images) - 1 else "final"
+            filter_str += f";[{prev}][v{i}]xfade=transition=fade:duration=0.5:offset={offset}[{label}]"
+            prev = label
+        last_label = prev
+
+    # Build ffmpeg command
+    cmd = ['ffmpeg', '-y'] + inputs + [
+        '-filter_complex', filter_str,
+        '-map', f'[{last_label}]',
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-preset', 'fast',
+        '-crf', '23',
+        '-movflags', '+faststart',
+        '-r', '30',
+        output_path
+    ]
+
+    print(f"🎬 Tạo video ({len(images)} cảnh x {duration_per_image}s)...")
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    if result.returncode != 0:
+        print(f"ffmpeg stderr: {result.stderr[-500:]}")
+        raise Exception(f"ffmpeg failed with code {result.returncode}")
+
+    size = os.path.getsize(output_path)
+    print(f"✅ Video tạo xong: {size} bytes ({size/1024/1024:.1f} MB)")
+    return output_path
+
+def upload_reel(video_path, caption):
+    """Upload video lên Facebook Reels qua API."""
+    file_size = os.path.getsize(video_path)
+
+    # Step 1: Start upload session
+    print("📤 Bắt đầu upload Reel...")
+    start_url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/video_reels"
+    start_res = requests.post(start_url, data={
+        "upload_phase": "start",
+        "access_token": FB_PAGE_TOKEN,
+    }, timeout=30)
+    start_data = start_res.json()
+
+    if "video_id" not in start_data:
+        raise Exception(f"Start upload failed: {start_data}")
+
+    video_id = start_data["video_id"]
+    print(f"Video ID: {video_id}")
+
+    # Step 2: Upload binary
+    upload_url = f"https://rupload.facebook.com/video-upload/v26.0/{video_id}"
+    with open(video_path, 'rb') as f:
+        video_data = f.read()
+
+    upload_res = requests.post(upload_url, data=video_data, headers={
+        "Authorization": f"OAuth {FB_PAGE_TOKEN}",
+        "offset": "0",
+        "file_size": str(file_size),
+        "Content-Type": "application/octet-stream",
+    }, timeout=120)
+    upload_data = upload_res.json()
+    print(f"Upload response: {upload_data}")
+
+    if not upload_data.get("success"):
+        raise Exception(f"Upload binary failed: {upload_data}")
+
+    # Step 3: Finish and publish
+    finish_url = f"https://graph.facebook.com/v26.0/{FB_PAGE_ID}/video_reels"
+    finish_res = requests.post(finish_url, data={
+        "upload_phase": "finish",
+        "access_token": FB_PAGE_TOKEN,
+        "video_id": video_id,
+        "title": caption[:80],
+        "description": caption,
+    }, timeout=60)
+    finish_data = finish_res.json()
+
+    if finish_data.get("success"):
+        print(f"✅ Reel đăng thành công! Video ID: {video_id}")
+    else:
+        raise Exception(f"Finish upload failed: {finish_data}")
+
+def main():
+    print(f"🚀 Bắt đầu tạo Reel: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    print("\n📝 Đang tạo nội dung Reel...")
+    parts = generate_reel_content()
+
+    print("\n🎨 Đang tạo ảnh AI cho các cảnh...")
+    images = generate_scene_images(parts)
+
+    print("\n🎬 Đang tạo video...")
+    video_path = create_video(images, parts)
+
+    print("\n📤 Đang đăng Reel lên Facebook...")
+    upload_reel(video_path, parts.get('CAPTION', ''))
+
+    # Cleanup
+    for img in images:
+        os.remove(img) if os.path.exists(img) else None
+    os.remove(video_path) if os.path.exists(video_path) else None
+
+    print("\n🎉 Hoàn tất!")
+
+if __name__ == "__main__":
+    main()

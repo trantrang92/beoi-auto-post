@@ -1,0 +1,28 @@
+name: Auto Reel to Facebook
+
+on:
+  schedule:
+    - cron: '0 5 * * *'  # 12h trưa VN (UTC+7) - xen kẽ với post 20h tối
+  workflow_dispatch:       # Cho phép chạy thủ công
+
+jobs:
+  reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run auto reel
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+        run: python reel.py
