@@ -154,54 +154,41 @@ Return ONLY 4 lines, one prompt per line."""
     return images
 
 def create_video(images, parts):
-    """Dùng ffmpeg tạo video từ ảnh với hiệu ứng zoom + text overlay."""
+    """Dùng ffmpeg tạo video từ ảnh — simple concat với fade transition."""
     output_path = "/tmp/reel.mp4"
     duration_per_image = 4  # seconds per scene
 
-    # Build ffmpeg filter: each image gets a slow zoom (ken burns) effect
+    # Simple approach: scale + concat with fade (no zoompan — too slow on CI)
     inputs = []
     filters = []
     for i, img in enumerate(images):
         inputs.extend(['-loop', '1', '-t', str(duration_per_image), '-i', img])
-        # Slow zoom in effect: scale from 100% to 110% over duration
-        filters.append(
-            f"[{i}:v]scale=1080:1920,setsar=1,"
-            f"zoompan=z='min(zoom+0.0015,1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
-            f":d={duration_per_image*30}:s=1080x1920:fps=30"
-            f"[v{i}]"
-        )
+        filters.append(f"[{i}:v]scale=720:1280:force_original_aspect_ratio=decrease,"
+                       f"pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24[v{i}]")
 
-    # Concat all scenes with crossfade
-    concat_parts = []
     if len(images) == 1:
         filter_str = filters[0]
         last_label = "v0"
     else:
         filter_str = ";".join(filters)
-        # Add crossfade between scenes
-        prev = "v0"
-        for i in range(1, len(images)):
-            offset = i * duration_per_image - 0.5  # 0.5s crossfade
-            label = f"cf{i}" if i < len(images) - 1 else "final"
-            filter_str += f";[{prev}][v{i}]xfade=transition=fade:duration=0.5:offset={offset}[{label}]"
-            prev = label
-        last_label = prev
+        # Simple concat with fade between scenes
+        concat_inputs = "".join(f"[v{i}]" for i in range(len(images)))
+        filter_str += f";{concat_inputs}concat=n={len(images)}:v=1:a=0[final]"
+        last_label = "final"
 
-    # Build ffmpeg command
     cmd = ['ffmpeg', '-y'] + inputs + [
         '-filter_complex', filter_str,
         '-map', f'[{last_label}]',
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'fast',
-        '-crf', '23',
+        '-preset', 'ultrafast',
+        '-crf', '28',
         '-movflags', '+faststart',
-        '-r', '30',
         output_path
     ]
 
     print(f"🎬 Tạo video ({len(images)} cảnh x {duration_per_image}s)...")
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
         print(f"ffmpeg stderr: {result.stderr[-500:]}")
         raise Exception(f"ffmpeg failed with code {result.returncode}")
