@@ -97,19 +97,32 @@ TITLE:
 
 def generate_scene_images(parts):
     """Tạo 4 ảnh AI cho 4 cảnh trong video (vertical 1080x1920)."""
-    scenes_prompt = f"""Based on this Vietnamese parenting content:
-Title: {parts.get('TITLE', '')}
-Tips: {parts.get('TIP1', '')}; {parts.get('TIP2', '')}; {parts.get('TIP3', '')}
+    caption = parts.get('CAPTION', '')
+    tip1 = parts.get('TIP1', '')
+    tip2 = parts.get('TIP2', '')
+    tip3 = parts.get('TIP3', '')
+    title = parts.get('TITLE', '')
 
-Generate 4 different English image prompts (one per line, max 25 words each) for a short video about this topic.
-Each scene should show a DIFFERENT moment:
-Scene 1: Opening - eye-catching scene related to the title
-Scene 2: Illustrating tip 1
-Scene 3: Illustrating tip 2
-Scene 4: Illustrating tip 3
+    scenes_prompt = f"""Read this Vietnamese Facebook Reel content carefully:
+---
+Title: {title}
+Caption: {caption}
+Tip 1: {tip1}
+Tip 2: {tip2}
+Tip 3: {tip3}
+---
 
-Style for ALL: soft pastel watercolor, cute cartoon illustration, warm lighting, wholesome, vertical portrait orientation.
-Return ONLY 4 lines, one prompt per line."""
+Based on the SPECIFIC content above, generate 4 English image prompts (one per line, max 25 words each).
+Each prompt MUST directly illustrate the EXACT activity or scene described:
+
+Scene 1: Illustrate the MAIN subject from the title "{title}" — show the specific baby activity mentioned
+Scene 2: Illustrate EXACTLY what tip 1 says: "{tip1}" — show the specific action described
+Scene 3: Illustrate EXACTLY what tip 2 says: "{tip2}" — show the specific action described
+Scene 4: Illustrate EXACTLY what tip 3 says: "{tip3}" — show the specific action described
+
+IMPORTANT: Be VERY specific. Do NOT use generic baby images. If the tip says "massage baby's gums with gauze", show exactly that. If it says "read book with baby", show a parent reading to a baby.
+Style for ALL: soft pastel watercolor, cute cartoon, warm lighting, vertical portrait.
+Return ONLY 4 lines, one prompt per line, no numbering."""
 
     result = gemini_generate(scenes_prompt)
     if not result:
