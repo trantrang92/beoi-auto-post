@@ -122,21 +122,32 @@ Return ONLY 4 lines, one prompt per line."""
 
     images = []
     for i, sp in enumerate(scene_prompts):
-        print(f"🎨 Tạo ảnh cảnh {i+1}/4: {sp[:60]}...")
+        print(f"🎨 Tạo ảnh cảnh {i+1}/{len(scene_prompts)}: {sp[:60]}...")
         encoded = quote(sp)
         url = f"https://image.pollinations.ai/prompt/{encoded}?width=1080&height=1920&seed={random.randint(1,99999)}&nologo=true"
-        try:
-            res = requests.get(url, timeout=90, allow_redirects=True)
-            if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
-                img_path = f"/tmp/scene_{i}.jpg"
-                with open(img_path, 'wb') as f:
-                    f.write(res.content)
-                images.append(img_path)
-                print(f"  ✅ {len(res.content)} bytes")
-            else:
-                print(f"  ❌ Status {res.status_code}")
-        except Exception as e:
-            print(f"  ❌ Lỗi: {e}")
+        for retry in range(3):
+            try:
+                res = requests.get(url, timeout=90, allow_redirects=True)
+                if res.status_code == 200 and 'image' in res.headers.get('Content-Type', ''):
+                    img_path = f"/tmp/scene_{i}.jpg"
+                    with open(img_path, 'wb') as f:
+                        f.write(res.content)
+                    images.append(img_path)
+                    print(f"  ✅ {len(res.content)} bytes")
+                    break
+                elif res.status_code == 402:
+                    wait = 30 * (retry + 1)
+                    print(f"  ⏳ Rate limit, đợi {wait}s... ({retry+1}/3)")
+                    time.sleep(wait)
+                else:
+                    print(f"  ❌ Status {res.status_code}")
+                    break
+            except Exception as e:
+                print(f"  ❌ Lỗi: {e}")
+                break
+        # Delay giữa các ảnh để tránh rate limit
+        if i < len(scene_prompts) - 1:
+            time.sleep(15)
 
     if len(images) < 2:
         raise Exception(f"Chỉ tạo được {len(images)} ảnh, cần ít nhất 2")
