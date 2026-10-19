@@ -163,8 +163,8 @@ def create_video(images, parts):
     filters = []
     for i, img in enumerate(images):
         inputs.extend(['-loop', '1', '-t', str(duration_per_image), '-i', img])
-        filters.append(f"[{i}:v]scale=720:1280:force_original_aspect_ratio=decrease,"
-                       f"pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24[v{i}]")
+        filters.append(f"[{i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+                       f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24[v{i}]")
 
     if len(images) == 1:
         filter_str = filters[0]
@@ -181,8 +181,8 @@ def create_video(images, parts):
         '-map', f'[{last_label}]',
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'ultrafast',
-        '-crf', '28',
+        '-preset', 'fast',
+        '-crf', '20',
         '-movflags', '+faststart',
         output_path
     ]
